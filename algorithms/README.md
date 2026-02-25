@@ -1,4 +1,4 @@
-# [dda.py](https://github.com/Red1-Rahman/primitives-engine/blob/main/algorithms/dda.py)
+# [dda.py](dda.py)
 
 ### problem:   
 Typical DDA algorithms use floor(x + 0.5) for rounding pixel coordinates, which is only correct for positive values. 
