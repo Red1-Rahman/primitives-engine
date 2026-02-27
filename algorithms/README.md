@@ -8,3 +8,8 @@ causing lines drawn in the third and fourth quadrants to be plotted with a sligh
 ### solution:   
 round_half_away_from_zero, in place of the standard floor(x + 0.5) formula. 
 The correction function `ceil(x - 0.5)` works correctly for negative values.
+
+# [bresenham](bresenham.py)   
+
+### Note:   
+the implementation is 2d only (for now)   
