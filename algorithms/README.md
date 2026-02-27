@@ -13,3 +13,14 @@ The correction function `ceil(x - 0.5)` works correctly for negative values.
 
 ### Note:   
 the implementation is 2d only (for now)   
+
+# [midpoint circle](midpoint_circle.py)
+
+### Note:
+the implementation handles integer and non-integer radii with different initial decision parameters.   
+
+for int:   
+p = 1 - r   
+
+for non-int:   
+p = 5/4 - r   
