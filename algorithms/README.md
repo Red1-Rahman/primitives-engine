@@ -29,3 +29,8 @@ p = 5/4 - r
 
 ### description:   
 Rotates a list of (x, y) points by a given angle (degrees), supporting both clockwise and counter-clockwise directions. Returns the transformed coordinates alongside a step-by-step table showing the calculation for each point.
+
+# [2D Translation.py](2d_translation.py)
+
+### Note:   
+it has translation function for both points and circles
