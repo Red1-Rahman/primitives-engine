@@ -44,3 +44,8 @@ Scales a list of (x, y) points by factors Sx and Sy. Includes a separate functio
 
 ### Note:
 Reflects a list of (x, y) points across a given axis. Supports five axes: x-axis, y-axis, origin, y=x, and y=−x.
+
+# [2D Shear](2d_shear.py)
+
+### Note:    
+Shears a list of (x, y) points using horizontal (Shx) and vertical (Shy) shear factors. Both axes can be sheared simultaneously or independently.
