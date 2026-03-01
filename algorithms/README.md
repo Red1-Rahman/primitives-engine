@@ -39,3 +39,8 @@ it has translation function for both points and circles
 
 ### Note:
 Scales a list of (x, y) points by factors Sx and Sy. Includes a separate function for scaling circles, where the radius scales uniformly with Sx.
+
+# [2D Reflection](2d_reflection.py)
+
+### Note:
+Reflects a list of (x, y) points across a given axis. Supports five axes: x-axis, y-axis, origin, y=x, and y=−x.
