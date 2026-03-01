@@ -25,12 +25,17 @@ p = 1 - r
 for non-int:   
 p = 5/4 - r   
 
-# [2D Rotation.py](2d_rotation.py)
+# [2D Rotation](2d_rotation.py)
 
 ### description:   
 Rotates a list of (x, y) points by a given angle (degrees), supporting both clockwise and counter-clockwise directions. Returns the transformed coordinates alongside a step-by-step table showing the calculation for each point.
 
-# [2D Translation.py](2d_translation.py)
+# [2D Translation](2d_translation.py)
 
 ### Note:   
 it has translation function for both points and circles
+
+# [2D Scaling](2d_scaling.py)
+
+### Note:
+Scales a list of (x, y) points by factors Sx and Sy. Includes a separate function for scaling circles, where the radius scales uniformly with Sx.
