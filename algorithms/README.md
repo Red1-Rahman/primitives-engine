@@ -24,3 +24,8 @@ p = 1 - r
 
 for non-int:   
 p = 5/4 - r   
+
+# [2D Rotation.py](2d_rotation.py)
+
+### description:   
+Rotates a list of (x, y) points by a given angle (degrees), supporting both clockwise and counter-clockwise directions. Returns the transformed coordinates alongside a step-by-step table showing the calculation for each point.
