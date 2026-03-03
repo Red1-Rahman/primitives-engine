@@ -49,3 +49,40 @@ Reflects a list of (x, y) points across a given axis. Supports five axes: x-axis
 
 ### Note:    
 Shears a list of (x, y) points using horizontal (Shx) and vertical (Shy) shear factors. Both axes can be sheared simultaneously or independently.
+
+# [Line Clipping](line_clipping.py)    
+learned today at theory class (03/03/2026) :)
+
+### Note:    
+its uses Cohen-Sutherland's algorithm    
+It clips a line to a rectangular viewport by assigning each endpoint a 4-bit region code (TBRL — Top, Bottom, Right, Left), then repeatedly clips until the line is either fully inside or fully rejected.
+**The 4-bit region code (TBRL)**
+
+```
+bit 4 = Top    (y > ymax)
+bit 3 = Bottom (y < ymin)
+bit 2 = Right  (x > xmax)
+bit 1 = Left   (x < xmin)
+```
+A point inside the viewport has code `0000`.
+
+**The 3x3 grid regions**
+```
+1001 | 1000 | 1010
+─────┼──────┼─────
+0001 | 0000 | 0010
+─────┼──────┼─────
+0101 | 0100 | 0110
+```
+
+**Three outcomes per iteration**
+- Both codes `0000` → **accept**, line is fully inside
+- `code1 & code2 != 0` → **reject**, line is fully outside
+- Otherwise → **clip** at the boundary where the outside point lies
+
+**The intersection math**
+For a line from (x1,y1) to (x2,y2), slope `m = dy/dx`:
+- Clip left: `x = xmin`, `y = y1 + m(xmin - x1)`
+- Clip right: `x = xmax`, `y = y1 + m(xmax - x1)`
+- Clip bottom: `y = ymin`, `x = x1 + (ymin - y1)/m`
+- Clip top: `y = ymax`, `x = x1 + (ymax - y1)/m`
