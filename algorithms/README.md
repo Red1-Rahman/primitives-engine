@@ -86,3 +86,8 @@ For a line from (x1,y1) to (x2,y2), slope `m = dy/dx`:
 - Clip right: `x = xmax`, `y = y1 + m(xmax - x1)`
 - Clip bottom: `y = ymin`, `x = x1 + (ymin - y1)/m`
 - Clip top: `y = ymax`, `x = x1 + (ymax - y1)/m`
+
+# [Polygon Clipping](polygon_clipping.py)
+
+### Note:
+Sutherland-Hodgman algorithm. Clips a polygon against a rectangular viewport by processing one edge (Left, Right, Bottom, Top) at a time.   
