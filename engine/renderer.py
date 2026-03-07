@@ -1,3 +1,4 @@
+import math
 from OpenGL.GL import *
 from algorithms.dda import run_dda
 from algorithms.bresenham import run_bresenham
@@ -30,7 +31,7 @@ def draw_point(x, y, size=2.0, color=(1.0, 1.0, 1.0)):
 
 def draw_line_dda(x1, y1, x2, y2, color=(1.0, 1.0, 1.0), size=2.0):
     """Draw a line using the DDA algorithm."""
-    _, _, rows = run_dda(x1, y1, x2, y2)
+    _, _, rows = run_dda(int(round(x1)), int(round(y1)), int(round(x2)), int(round(y2)))
     set_color(*color)
     glPointSize(size)
     glBegin(GL_POINTS)
@@ -41,11 +42,12 @@ def draw_line_dda(x1, y1, x2, y2, color=(1.0, 1.0, 1.0), size=2.0):
 
 def draw_line_bresenham(x1, y1, x2, y2, color=(1.0, 1.0, 1.0), size=2.0):
     """Draw a line using the Bresenham algorithm."""
-    _, _, rows = run_bresenham(x1, y1, x2, y2)
+    ix1, iy1, ix2, iy2 = int(round(x1)), int(round(y1)), int(round(x2)), int(round(y2))
+    _, _, rows = run_bresenham(ix1, iy1, ix2, iy2)
     set_color(*color)
     glPointSize(size)
     glBegin(GL_POINTS)
-    glVertex2f(x1, y1)  # starting point is not emitted by the algorithm
+    glVertex2f(ix1, iy1)  # starting point is not emitted by the algorithm
     for row in rows:
         glVertex2f(row["x(i+1)"], row["y(i+1)"])
     glEnd()
@@ -120,3 +122,14 @@ def draw_rect(x, y, w, h, color=(1.0, 1.0, 1.0), width=1.0, filled=False):
         draw_filled_polygon(points, color)
     else:
         draw_polygon(points, color, width)
+
+
+def draw_filled_circle(cx, cy, r, color=(1.0, 1.0, 1.0), segments=60):
+    """Draw a filled circle using GL_TRIANGLE_FAN."""
+    set_color(*color)
+    glBegin(GL_TRIANGLE_FAN)
+    glVertex2f(cx, cy)
+    for i in range(segments + 1):
+        angle = 2 * math.pi * i / segments
+        glVertex2f(cx + r * math.cos(angle), cy + r * math.sin(angle))
+    glEnd()
