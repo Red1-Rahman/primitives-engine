@@ -60,7 +60,7 @@ def _mouse_move(x, y):
 
 
 # ─────────────────────────────────────────────
-#  HELPERS  (call these in your scene/update)
+#  HELPERS  (call these in scene/update)
 # ─────────────────────────────────────────────
 
 def is_key(key) -> bool:
