@@ -1,4 +1,5 @@
-POINT_LABELS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+POINT_LABELS = [chr(65 + i % 26) + (str(i // 26) if i >= 26 else "") 
+                for i in range(1000)]
 
 def run_2d_shear(points, shx=0.0, shy=0.0):
     """

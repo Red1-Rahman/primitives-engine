@@ -1,4 +1,5 @@
-POINT_LABELS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+POINT_LABELS = [chr(65 + i % 26) + (str(i // 26) if i >= 26 else "") 
+                for i in range(1000)]
 
 AXES = ("x-axis", "y-axis", "origin", "y=x", "y=-x")
 

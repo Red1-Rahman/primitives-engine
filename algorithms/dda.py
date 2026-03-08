@@ -9,7 +9,7 @@ def run_dda(x1, y1, x2, y2):
     steps = max(abs(dx), abs(dy))
 
     if steps == 0:
-        return None, None, [(x1, y1, x1, y1)]
+        return None, None, [{"x (rounded)": x1, "y (rounded)": y1}]
 
     slope_str = None
     slope_note = ""
