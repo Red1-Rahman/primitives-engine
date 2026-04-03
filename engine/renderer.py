@@ -1,5 +1,6 @@
 import math
 from OpenGL.GL import *
+from OpenGL.GLUT import GLUT_BITMAP_HELVETICA_18, glutBitmapCharacter
 from algorithms.dda import run_dda
 from algorithms.bresenham import run_bresenham
 from algorithms.midpoint_circle import run_midpoint_circle
@@ -133,3 +134,15 @@ def draw_filled_circle(cx, cy, r, color=(1.0, 1.0, 1.0), segments=60):
         angle = 2 * math.pi * i / segments
         glVertex2f(cx + r * math.cos(angle), cy + r * math.sin(angle))
     glEnd()
+
+
+# ─────────────────────────────────────────────
+#  TEXT
+# ─────────────────────────────────────────────
+
+def draw_text(x, y, text, color=(1.0, 1.0, 1.0), font=GLUT_BITMAP_HELVETICA_18):
+    """Draw bitmap text at world position (x, y)."""
+    set_color(*color)
+    glRasterPos2f(x, y)
+    for ch in str(text):
+        glutBitmapCharacter(font, ord(ch))
