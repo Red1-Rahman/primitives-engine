@@ -1,24 +1,18 @@
-# Scenes Guide
+# Games Guide
 
-Write scene modules only.
+Write game modules only.
 
 ## Required module API
 
 - You must define: init(), update(), draw().
-- init(): reset all state.
-- update(): update state only.
-- draw(): render only.
-
-## Register your scene
-
-- Import your module in main.py.
-- Add module to \_SCENES in main.py.
-- Add matching title to \_SCENE_NAMES in main.py (same index).
+- Optional: DISPLAY_NAME = "Your Game Name".
+- main.py auto-loads modules in games/ that expose callable init/update/draw.
 
 ## Core imports
 
-from engine.renderer import draw_line_dda, draw_line_bresenham, draw_circle, draw_rect, draw_polygon, draw_filled_polygon, draw_text
 from engine.input import is_key, is_special, is_mouse, mouse_pos
+from engine.renderer import draw_point, draw_line_dda, draw_line_bresenham, draw_circle, draw_rect, draw_polygon, draw_filled_polygon, draw_text
+from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
 from algorithms import ...
 
 ## Algorithms (one line each)
@@ -36,24 +30,33 @@ from algorithms import ...
 - run_2d_reflection(points, axis): reflects points across x-axis, y-axis, origin, y=x, or y=-x.
 - run_2d_shear(points, shx=0.0, shy=0.0): shears points in x and/or y; returns table plus sheared points.
 
-## Minimal scene template
+## Minimal game template
 
-from engine.renderer import draw_rect
+DISPLAY_NAME = "My Game"
+
+from engine.input import is_key
+from engine.renderer import draw_rect, draw_text
+from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
+
+\_state = {}
 
 def init():
-pass
+\_state["score"] = 0
 
 def update():
-pass
+if is_key(b"r") or is_key(b"R"):
+init()
 
 def draw():
-draw_rect(-400, -300, 800, 600, color=(0.1, 0.1, 0.1), filled=True)
+draw_rect(WORLD_LEFT, WORLD_BOTTOM, WORLD_RIGHT - WORLD_LEFT, WORLD_TOP - WORLD_BOTTOM,
+color=(0.06, 0.06, 0.09), filled=True)
+draw_text(WORLD_LEFT + 16, WORLD_TOP - 28, f"Score: {\_state['score']}")
 
 ## Avoid
 
-- Do not create while loops or call glutMainLoop() inside a scene.
-- Do not call init_window() or start_loop() from scene modules.
-- Do not mutate engine callbacks or projection state from scene code.
-- Do not forget to register the scene in main.py.
+- Do not create while loops or call glutMainLoop() in a game module.
+- Do not call init_window() or start_loop() for launcher mode.
+- Do not block update() with long tasks, sleep, or input() calls.
+- Do not rely on file names starting with \_ (those are skipped by discovery).
 
 best regards - Redwan Rahman
