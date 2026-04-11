@@ -21,7 +21,7 @@ from engine.renderer import draw_line_dda, draw_line_bresenham, draw_circle, dra
 from engine.input import is_key, is_special, is_mouse, mouse_pos
 from algorithms import ...
 
-## Algorithms (one line each)
+## Algorithms
 
 - run_dda(x1, y1, x2, y2): DDA line rasterization; returns slope info and rounded pixel rows.
 - run_bresenham(x1, y1, x2, y2): integer line rasterization; returns slope info and step decision rows.

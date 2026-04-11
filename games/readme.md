@@ -15,7 +15,7 @@ from engine.renderer import draw_point, draw_line_dda, draw_line_bresenham, draw
 from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
 from algorithms import ...
 
-## Algorithms (one line each)
+## Algorithms
 
 - run_dda(x1, y1, x2, y2): DDA line rasterization; returns slope info and rounded pixel rows.
 - run_bresenham(x1, y1, x2, y2): integer line rasterization; returns slope info and step decision rows.
