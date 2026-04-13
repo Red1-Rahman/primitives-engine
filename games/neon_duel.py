@@ -21,7 +21,6 @@ from engine.window import WORLD_BOTTOM, WORLD_LEFT, WORLD_RIGHT, WORLD_TOP
 
 DISPLAY_NAME = "Neon Duel"
 
-# Optional import to align with environments that install pyopengl_accelerate.
 try:
     import OpenGL_accelerate as _ogl_accel  # noqa: F401
 except Exception:
