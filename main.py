@@ -30,13 +30,14 @@ import scenes.shadhinota            as s5
 import scenes.primary_school        as s6
 import scenes.jungle_cartoons       as s7
 import scenes.wave_particle_collapse as s8
+import scenes.KnowlegeTower         as s9
 
 import games as games_pkg
 
 # ─────────────────────────────────────────────
 #  SCENES
 # ─────────────────────────────────────────────
-_SCENES = [s1, s2, s3, s4, s5, s6, s7, s8]
+_SCENES = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
 _SCENE_NAMES = [
     "Village Scenery",
     "City Scenery",
@@ -46,6 +47,7 @@ _SCENE_NAMES = [
     "Primary School",
     "Three Cartoons in Jungle",
     "Wave-Particle Collapse",
+    "Knowledge Tower",
 ]
 
 # ─────────────────────────────────────────────
