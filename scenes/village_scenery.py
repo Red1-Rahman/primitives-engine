@@ -1,3 +1,4 @@
+# scenes\village_scenery.py
 """
 Village Scenery
 Moving objects : sun (translation), three birds (translation)

@@ -1,3 +1,4 @@
+# scenes\village_hut_bazar.py
 """
 Village Hut-Bazar  — a rural marketplace
 Moving objects : person walking (translation),

@@ -1,3 +1,4 @@
+# scenes\shadhinota.py
 """
 Bangladesher Shadhinota — Independence Day scene
 Moving objects : waving flag (shear), sun/flower decorations

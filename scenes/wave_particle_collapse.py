@@ -1,3 +1,4 @@
+# scenes\wave_particle_collapse.py
 """
 True Emergent Wave Simulation — 2D Finite Difference Time Domain (FDTD)
 Moving objects : None. This is a grid-based scalar field simulation.

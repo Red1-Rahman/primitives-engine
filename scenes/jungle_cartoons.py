@@ -1,3 +1,4 @@
+# scenes\jungle_cartoons.py
 """
 Three Cartoons in Jungle
 Moving objects : three cartoon characters at different speeds/directions,

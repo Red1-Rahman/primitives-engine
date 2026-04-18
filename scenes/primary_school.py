@@ -1,3 +1,4 @@
+# scenes\primary_school.py
 """
 Primary School  — school building and playground
 Moving objects : bouncing ball (translation + simulated gravity),

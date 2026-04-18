@@ -1,3 +1,4 @@
+# scenes\interior_design.py
 """
 Interior Design  — a furnished room
 Moving objects : ceiling fan (rotation), clock minute hand (rotation)
