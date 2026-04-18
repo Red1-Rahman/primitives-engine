@@ -1,3 +1,4 @@
+# main.py
 """
 Primitives Engine — main entry point
 Mode selection screen drawn with OpenGL primitives.
