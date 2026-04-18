@@ -1,3 +1,4 @@
+# algorithms\midpoint_circle.py
 def eight_points(cx, cy, x, y):
     pts = set()
     for sx, sy in [(x,y),(-x,y),(x,-y),(-x,-y),(y,x),(-y,x),(y,-x),(-y,-x)]:

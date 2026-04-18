@@ -1,3 +1,4 @@
+# algorithms\scaling2d.py
 POINT_LABELS = [chr(65 + i % 26) + (str(i // 26) if i >= 26 else "") 
                 for i in range(1000)]
 

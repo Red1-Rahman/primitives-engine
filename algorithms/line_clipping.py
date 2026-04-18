@@ -1,3 +1,4 @@
+# algorithms\line_clipping.py
 INSIDE = 0
 LEFT   = 1
 RIGHT  = 2

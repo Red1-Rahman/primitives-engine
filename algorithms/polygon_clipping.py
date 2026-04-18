@@ -1,3 +1,4 @@
+# algorithms\polygon_clipping.py
 def inside(p, edge, xmin, ymin, xmax, ymax):
     x, y = p
     if edge == 'LEFT':   return x >= xmin
