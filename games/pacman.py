@@ -1,3 +1,4 @@
+# games\pacman.py
 """
 Pacman mini-game  —  proper Pacman with mouth, direction, ghosts, and maze.
 Player       : yellow Pacman (GL_TRIANGLE_FAN with animated mouth wedge)
