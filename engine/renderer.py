@@ -1,3 +1,4 @@
+# engine\renderer.py
 import math
 from OpenGL.GL import *
 from OpenGL.GLUT import GLUT_BITMAP_HELVETICA_18, glutBitmapCharacter
