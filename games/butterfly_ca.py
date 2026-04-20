@@ -18,7 +18,7 @@ DISPLAY_NAME = "🦋 Butterfly CA Trail"
 # ── imports ──────────────────────────────────────────────────────────────────
 import math, random
 from engine.input   import is_key
-from engine.renderer import draw_point, draw_rect, draw_text
+from engine.renderer import draw_point, draw_rect, draw_text, draw_filled_circle
 from engine.window  import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
 
 # ── tuneable constants ────────────────────────────────────────────────────────
@@ -32,6 +32,23 @@ FLAP_SPEED  = 0.14       # wing flap rate
 MANUAL_SPEED = 1.05      # speed when player is steering
 STEER_BLEND_AUTO   = 0.18
 STEER_BLEND_MANUAL = 0.34
+
+# gameplay tuning
+OBJECTIVE_COUNT = 3
+OBSTACLE_COUNT = 4
+OBJECTIVE_RADIUS = 5.5
+OBSTACLE_RADIUS_MIN = 6.5
+OBSTACLE_RADIUS_MAX = 10.5
+OBSTACLE_SPEED_MIN = 0.26
+OBSTACLE_SPEED_MAX = 0.62
+START_LIVES = 3
+RESPAWN_INVULN_FRAMES = 78
+SURVIVAL_SCORE_EVERY = 18
+SURVIVAL_SCORE_GAIN = 1
+NECTAR_SCORE = 28
+HIT_SCORE_PENALTY = 18
+TARGET_SCORE = 320
+TARGET_COLLECTS = 12
 
 # ── palettes (name, [(r,g,b) thresholds from low→high]) ──────────────────────
 PALETTES = [
@@ -98,6 +115,82 @@ def _grid_to_world(gx, gy, cols, rows):
     cy = WORLD_BOTTOM+ (gy+0.5)/(rows) * (WORLD_TOP-WORLD_BOTTOM)
     return cx, cy
 
+def _dist2(ax, ay, bx, by):
+    dx = ax - bx
+    dy = ay - by
+    return dx*dx + dy*dy
+
+def _rand_world_point(pad_frac=0.08):
+    w = WORLD_RIGHT - WORLD_LEFT
+    h = WORLD_TOP - WORLD_BOTTOM
+    px = w * pad_frac
+    py = h * pad_frac
+    x = random.uniform(WORLD_LEFT + px, WORLD_RIGHT - px)
+    y = random.uniform(WORLD_BOTTOM + py, WORLD_TOP - py)
+    return x, y
+
+def _spawn_objective():
+    obstacles = _s.get('obstacles', [])
+    bx, by = _s['bx'], _s['by']
+
+    for _ in range(60):
+        x, y = _rand_world_point(0.10)
+        if _dist2(x, y, bx, by) < 120*120:
+            continue
+        blocked = False
+        for obs in obstacles:
+            r = obs['r'] + OBJECTIVE_RADIUS + 10
+            if _dist2(x, y, obs['x'], obs['y']) < r*r:
+                blocked = True
+                break
+        if not blocked:
+            return dict(x=x, y=y, pulse=random.uniform(0.0, math.tau))
+
+    # fallback when map is crowded
+    x, y = _rand_world_point(0.15)
+    return dict(x=x, y=y, pulse=random.uniform(0.0, math.tau))
+
+def _spawn_obstacle():
+    x, y = _rand_world_point(0.12)
+    ang = random.uniform(0.0, math.tau)
+    spd = random.uniform(OBSTACLE_SPEED_MIN, OBSTACLE_SPEED_MAX)
+    return dict(
+        x=x,
+        y=y,
+        vx=math.cos(ang) * spd,
+        vy=math.sin(ang) * spd,
+        r=random.uniform(OBSTACLE_RADIUS_MIN, OBSTACLE_RADIUS_MAX),
+    )
+
+def _advance_obstacles(dt):
+    pad = (WORLD_RIGHT - WORLD_LEFT) * 0.05
+    for obs in _s['obstacles']:
+        obs['x'] += obs['vx'] * dt
+        obs['y'] += obs['vy'] * dt
+
+        if obs['x'] < WORLD_LEFT + pad:
+            obs['x'] = WORLD_LEFT + pad
+            obs['vx'] = abs(obs['vx'])
+        if obs['x'] > WORLD_RIGHT - pad:
+            obs['x'] = WORLD_RIGHT - pad
+            obs['vx'] = -abs(obs['vx'])
+        if obs['y'] < WORLD_BOTTOM + pad:
+            obs['y'] = WORLD_BOTTOM + pad
+            obs['vy'] = abs(obs['vy'])
+        if obs['y'] > WORLD_TOP - pad:
+            obs['y'] = WORLD_TOP - pad
+            obs['vy'] = -abs(obs['vy'])
+
+        # subtle wandering motion keeps the hazard pattern dynamic.
+        wobble = perlin2(obs['x']*0.02 + _s['t']*0.4, obs['y']*0.02 - _s['t']*0.3)
+        obs['vx'] += math.cos(wobble*2.4) * 0.01 * dt
+        obs['vy'] += math.sin(wobble*2.4) * 0.01 * dt
+
+        spd = math.hypot(obs['vx'], obs['vy']) or 1.0
+        target = max(0.1, min(OBSTACLE_SPEED_MAX*1.2, spd))
+        obs['vx'] = obs['vx']/spd * target
+        obs['vy'] = obs['vy']/spd * target
+
 def init():
     W = int(WORLD_RIGHT - WORLD_LEFT)
     H = int(WORLD_TOP   - WORLD_BOTTOM)
@@ -124,8 +217,20 @@ def init():
         dither=True,
         palette_idx=0,
         frame=0,
+        score=0,
+        lives=START_LIVES,
+        collected=0,
+        invuln=0,
+        survival_tick=0,
+        game_over=False,
+        win=False,
+        objectives=[],
+        obstacles=[],
         prev_keys={},
     ))
+
+    _s['obstacles'] = [_spawn_obstacle() for _ in range(OBSTACLE_COUNT)]
+    _s['objectives'] = [_spawn_objective() for _ in range(OBJECTIVE_COUNT)]
 
 def _inject_ellipse(cx, cy, heading, r_fwd, r_lat, amount, skew=0.0):
     grid = _s['grid']
@@ -265,6 +370,12 @@ def update():
 
     if _s['paused']: return
 
+    if _s['game_over'] or _s['win']:
+        _ca_step()
+        _s['t'] += 0.006
+        _s['frame'] += 1
+        return
+
     dt = _s['speed_mult']
     t  = _s['t']
     ix = (1 if _key_down_any(b'd', b'D') else 0) - (1 if _key_down_any(b'a', b'A') else 0)
@@ -320,6 +431,54 @@ def update():
     if abs(_s['bvx']) + abs(_s['bvy']) > 1e-6:
         _s['heading'] = math.atan2(_s['bvy'], _s['bvx'])
 
+    _advance_obstacles(dt)
+
+    for obj in _s['objectives']:
+        obj['pulse'] += 0.12 * dt
+
+    # collect nectar objectives
+    pickup_r2 = (OBJECTIVE_RADIUS + 5.2) * (OBJECTIVE_RADIUS + 5.2)
+    remaining = []
+    for obj in _s['objectives']:
+        if _dist2(bx, by, obj['x'], obj['y']) <= pickup_r2:
+            _s['score'] += NECTAR_SCORE
+            _s['collected'] += 1
+            gx2, gy2 = _world_to_grid(obj['x'], obj['y'], _s['cols'], _s['rows'])
+            _inject_ellipse(gx2, gy2, _s['heading'], 3.8, 2.4, 0.95)
+        else:
+            remaining.append(obj)
+    _s['objectives'] = remaining
+    while len(_s['objectives']) < OBJECTIVE_COUNT:
+        _s['objectives'].append(_spawn_objective())
+
+    # obstacle collisions
+    if _s['invuln'] > 0:
+        _s['invuln'] -= 1
+    else:
+        for obs in _s['obstacles']:
+            hit_r = obs['r'] + 4.0
+            if _dist2(bx, by, obs['x'], obs['y']) < hit_r*hit_r:
+                _s['lives'] -= 1
+                _s['score'] = max(0, _s['score'] - HIT_SCORE_PENALTY)
+                _s['invuln'] = RESPAWN_INVULN_FRAMES
+
+                dx = bx - obs['x']
+                dy = by - obs['y']
+                dm = math.hypot(dx, dy) or 1.0
+                _s['bvx'] += (dx / dm) * 1.1
+                _s['bvy'] += (dy / dm) * 1.1
+                break
+
+    _s['survival_tick'] += 1
+    if _s['survival_tick'] >= SURVIVAL_SCORE_EVERY:
+        _s['survival_tick'] = 0
+        _s['score'] += SURVIVAL_SCORE_GAIN
+
+    if _s['lives'] <= 0:
+        _s['game_over'] = True
+    if _s['score'] >= TARGET_SCORE or _s['collected'] >= TARGET_COLLECTS:
+        _s['win'] = True
+
     # inject asymmetric wing-beat energy into the grid.
     gx, gy = _world_to_grid(bx, by, _s['cols'], _s['rows'])
     _inject_wingbeat(gx, gy, _s['heading'], _s['flap'])
@@ -349,6 +508,20 @@ def draw():
             wx, wy = _grid_to_world(gx, gy, cols, rows)
             r,g,b  = _map_color(v, gx, gy)
             draw_rect(wx - cs*0.5, wy - cs*0.5, cs, cs, color=(r,g,b), filled=True)
+
+    # draw objectives (nectar blooms)
+    for obj in _s['objectives']:
+        pulse = 0.7 + 0.3*math.sin(obj['pulse'])
+        r1 = OBJECTIVE_RADIUS * (0.9 + 0.35*pulse)
+        draw_filled_circle(obj['x'], obj['y'], r1 + 2.0, color=(0.12, 0.28, 0.08, 0.45))
+        draw_filled_circle(obj['x'], obj['y'], r1, color=(0.86, 0.96, 0.40, 0.95))
+        draw_filled_circle(obj['x'], obj['y'], max(1.5, r1*0.36), color=(0.98, 0.98, 0.82, 1.0))
+
+    # draw obstacles (thorn spores)
+    for obs in _s['obstacles']:
+        draw_filled_circle(obs['x'], obs['y'], obs['r'] + 1.8, color=(0.22, 0.05, 0.08, 0.65))
+        draw_filled_circle(obs['x'], obs['y'], obs['r'], color=(0.76, 0.18, 0.22, 0.92))
+        draw_filled_circle(obs['x'], obs['y'], max(1.0, obs['r']*0.32), color=(0.95, 0.70, 0.72, 0.92))
 
     # draw butterfly
     bx, by = _s['bx'], _s['by']
@@ -412,6 +585,10 @@ def draw():
             tint = 0.5 + 0.5*(1.0-k/5.0)
             draw_point(wx2, wy2, color=(pal_low[0]*tint, pal_low[1]*tint, pal_low[2]*tint))
 
+    if _s['invuln'] > 0 and _s['invuln'] % 4 < 2:
+        glow = 6.5 + 1.8*math.sin(_s['frame']*0.2)
+        draw_filled_circle(bx, by, glow, color=(0.95, 0.95, 1.0, 0.25))
+
     # HUD
     pal_name = PALETTES[_s['palette_idx']][0]
     draw_text(WORLD_LEFT+8, WORLD_TOP-20,
@@ -422,3 +599,19 @@ def draw():
     draw_text(WORLD_LEFT+8, WORLD_TOP-38,
               "WASD=steer  R=reset  SPACE=pause  +/-=speed  X=dither  C=palette",
               color=(0.3,0.3,0.4))
+    draw_text(WORLD_LEFT+8, WORLD_TOP-56,
+              f"score: {_s['score']}  |  lives: {_s['lives']}  |  "
+              f"nectar: {_s['collected']}/{TARGET_COLLECTS}  |  target score: {TARGET_SCORE}",
+              color=(0.70,0.78,0.86))
+
+    if _s['win'] or _s['game_over']:
+        draw_rect(WORLD_LEFT, WORLD_BOTTOM,
+                  WORLD_RIGHT-WORLD_LEFT, WORLD_TOP-WORLD_BOTTOM,
+                  color=(0.02, 0.02, 0.05, 0.62), filled=True)
+        if _s['win']:
+            draw_text(-135, 22, "Objective Complete!", color=(0.95, 0.98, 0.85))
+            draw_text(-210, -6, "You gathered enough nectar and stabilized the trail.", color=(0.72, 0.84, 0.72))
+        else:
+            draw_text(-94, 22, "Trail Lost!", color=(0.98, 0.78, 0.78))
+            draw_text(-180, -6, "Too many thorn hits. Try a cleaner flight path.", color=(0.86, 0.66, 0.66))
+        draw_text(-128, -36, "Press R to restart", color=(0.82, 0.84, 0.90))
