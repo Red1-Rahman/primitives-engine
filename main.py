@@ -4,6 +4,7 @@ Primitives Engine — main entry point
 Mode selection screen drawn with OpenGL primitives.
 Arrow keys to highlight, Enter to confirm, Backspace to go back.
 Number keys to switch scenes/games after selecting a mode.
+Hold Tab to open a full selector list, then use Up/Down + Enter.
 ESC to quit.
 """
 import importlib
@@ -30,15 +31,15 @@ import scenes.village_hut_bazar     as s4
 import scenes.shadhinota            as s5
 import scenes.primary_school        as s6
 import scenes.jungle_cartoons       as s7
-import scenes.wave_particle_collapse as s8
-import scenes.KnowlegeTower         as s9
+#import scenes.wave_particle_collapse as s8
+import scenes.KnowlegeTower         as s8
 
 import games as games_pkg
 
 # ─────────────────────────────────────────────
 #  SCENES
 # ─────────────────────────────────────────────
-_SCENES = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
+_SCENES = [s1, s2, s3, s4, s5, s6, s7, s8 ]
 _SCENE_NAMES = [
     "Village Scenery",
     "City Scenery",
@@ -47,7 +48,7 @@ _SCENE_NAMES = [
     "Bangladesher Shadhinota",
     "Primary School",
     "Three Cartoons in Jungle",
-    "Wave-Particle Collapse",
+    #"Wave-Particle Collapse",
     "Knowledge Tower",
 ]
 
@@ -81,6 +82,7 @@ def _module_name(module):
 _screen        = "menu"
 _menu_cursor   = 0          # 0 = Scenes, 1 = Games
 _current       = 0          # active scene/game index
+_browse_cursor = 0          # selector cursor when Tab list is open
 
 _ITEMS  = []
 _NAMES  = []
@@ -94,6 +96,7 @@ _last_enter   = False
 _last_back    = False
 _last_next    = False
 _last_prev    = False
+_last_tab     = False
 
 
 # ─────────────────────────────────────────────
@@ -186,20 +189,32 @@ def _draw_switcher():
                         WORLD_RIGHT - 20, WORLD_TOP - 35,
                         color=(0.2, 0.5, 1.0), size=1)
     draw_text(WORLD_LEFT + 30, WORLD_TOP - 28,
-              f"{mode_name} Mode  |  Backspace = back  |  ESC = quit",
+              f"{mode_name} Mode  |  TAB + UP/DOWN + ENTER  |  Backspace = back",
               color=(0.5, 0.6, 0.8))
     draw_text(WORLD_LEFT + 30, WORLD_BOTTOM + 20,
-          f"Now running:  {_NAMES[_current]}  |  Release Tab to play",
-          color=(0.3, 0.8, 0.4))
+              f"Selected:  {_NAMES[_browse_cursor]}  |  Running: {_NAMES[_current]}  |  Release Tab to play",
+              color=(0.3, 0.8, 0.4))
 
-    # List
+    # List (scrolls so unlimited items are accessible)
     start_y = 200
     step_y  = 36
-    for i, name in enumerate(_NAMES):
-        oy = start_y - i * step_y
+    max_rows = max(1, int((start_y - (WORLD_BOTTOM + 65)) // step_y) + 1)
+
+    total = len(_NAMES)
+    if total <= max_rows:
+        first = 0
+    else:
+        half = max_rows // 2
+        first = max(0, _browse_cursor - half)
+        first = min(first, total - max_rows)
+    last = min(total, first + max_rows)
+
+    for row, i in enumerate(range(first, last)):
+        name = _NAMES[i]
+        oy = start_y - row * step_y
         key_label = "0" if i == 9 else str(i + 1) if i < 10 else "–"
 
-        if i == _current:
+        if i == _browse_cursor:
             draw_rect(-340, oy - 8, 680, 30,
                       color=(0.10, 0.18, 0.36), filled=True)
             draw_rect(-340, oy - 8, 680, 30,
@@ -215,6 +230,12 @@ def _draw_switcher():
         else:
             draw_text(-308, oy + 2, f"[{key_label}]  {name}",
                       color=(0.5, 0.55, 0.65))
+
+    # Show list position hint when clipping is active.
+    if total > max_rows:
+        draw_text(WORLD_RIGHT - 200, WORLD_TOP - 28,
+                  f"{_browse_cursor + 1}/{total}",
+                  color=(0.7, 0.75, 0.85))
 
     # Running scene/game label at bottom
     draw_line_bresenham(WORLD_LEFT + 20, WORLD_BOTTOM + 35,
@@ -242,7 +263,7 @@ def _switch_to(index):
 
 
 def _enter_mode(mode):
-    global _screen, _ITEMS, _NAMES, _current
+    global _screen, _ITEMS, _NAMES, _current, _browse_cursor
     _screen = mode
     if mode == "scenes":
         _ITEMS = _SCENES
@@ -251,6 +272,7 @@ def _enter_mode(mode):
         _ITEMS = _GAMES
         _NAMES = [_module_name(m) for m in _GAMES]
     _current = 0
+    _browse_cursor = _current
     _ITEMS[_current].init()
     glutSetWindowTitle(
         f"Primitives Engine  |  {_NAMES[_current]}".encode()
@@ -282,11 +304,13 @@ def _update():
     global _menu_cursor, _screen
     global _last_keys, _last_up, _last_down
     global _last_enter, _last_back, _last_next, _last_prev
+    global _browse_cursor, _last_tab
 
     up_now    = is_special(GLUT_KEY_UP)
     down_now  = is_special(GLUT_KEY_DOWN)
     enter_now = is_key(b"\r") or is_key(b"\n")
     back_now  = is_key(b"\x08")   # Backspace
+    tab_now   = is_key(b"\t")
 
     if _screen == "menu":
         if up_now and not _last_up:
@@ -297,10 +321,25 @@ def _update():
             _enter_mode("scenes" if _menu_cursor == 0 else "games")
 
     elif _screen in ("scenes", "games"):
-        _ITEMS[_current].update()
+        if tab_now and not _last_tab:
+            _browse_cursor = _current
+
+        # Freeze current scene/game updates while selector is open so arrow
+        # keys are reserved for list navigation.
+        if not tab_now:
+            _ITEMS[_current].update()
 
         if back_now and not _last_back:
             _go_back()
+
+        # Tab selector: browse with arrows, confirm with Enter.
+        if tab_now:
+            if up_now and not _last_up:
+                _browse_cursor = (_browse_cursor - 1) % len(_ITEMS)
+            if down_now and not _last_down:
+                _browse_cursor = (_browse_cursor + 1) % len(_ITEMS)
+            if enter_now and not _last_enter:
+                _switch_to(_browse_cursor)
 
         # Number key switching
         pressed = set()
@@ -310,6 +349,7 @@ def _update():
                 pressed.add(i)
         for i in pressed - _last_keys:
             _switch_to(i)
+            _browse_cursor = _current
 
         # N / P cycle if more than 10
         next_now = is_key(b"n") or is_key(b"N")
@@ -323,6 +363,7 @@ def _update():
         _last_prev = prev_now
 
         _last_keys = pressed
+        _last_tab = tab_now
 
     _last_up    = up_now
     _last_down  = down_now
