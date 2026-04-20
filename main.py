@@ -4,7 +4,7 @@ Primitives Engine — main entry point
 Mode selection screen drawn with OpenGL primitives.
 Arrow keys to highlight, Enter to confirm, Backspace to go back.
 Number keys to switch scenes/games after selecting a mode.
-Hold Tab to open a full selector list, then use Up/Down + Enter.
+Tab toggles a full selector list; use Up/Down + Enter to choose.
 ESC to quit.
 """
 import importlib
@@ -83,6 +83,7 @@ _screen        = "menu"
 _menu_cursor   = 0          # 0 = Scenes, 1 = Games
 _current       = 0          # active scene/game index
 _browse_cursor = 0          # selector cursor when Tab list is open
+_selector_open = False
 
 _ITEMS  = []
 _NAMES  = []
@@ -189,10 +190,10 @@ def _draw_switcher():
                         WORLD_RIGHT - 20, WORLD_TOP - 35,
                         color=(0.2, 0.5, 1.0), size=1)
     draw_text(WORLD_LEFT + 30, WORLD_TOP - 28,
-              f"{mode_name} Mode  |  TAB + UP/DOWN + ENTER  |  Backspace = back",
+              f"{mode_name} Mode  |  TAB toggle  |  UP/DOWN + ENTER select  |  Backspace = back",
               color=(0.5, 0.6, 0.8))
     draw_text(WORLD_LEFT + 30, WORLD_BOTTOM + 20,
-              f"Selected:  {_NAMES[_browse_cursor]}  |  Running: {_NAMES[_current]}  |  Release Tab to play",
+              f"Selected:  {_NAMES[_browse_cursor]}  |  Running: {_NAMES[_current]}",
               color=(0.3, 0.8, 0.4))
 
     # List (scrolls so unlimited items are accessible)
@@ -241,9 +242,6 @@ def _draw_switcher():
     draw_line_bresenham(WORLD_LEFT + 20, WORLD_BOTTOM + 35,
                         WORLD_RIGHT - 20, WORLD_BOTTOM + 35,
                         color=(0.2, 0.5, 1.0), size=1)
-    draw_text(WORLD_LEFT + 30, WORLD_BOTTOM + 20,
-              f"Now running:  {_NAMES[_current]}",
-              color=(0.3, 0.8, 0.4))
 
 
 # ─────────────────────────────────────────────
@@ -263,7 +261,7 @@ def _switch_to(index):
 
 
 def _enter_mode(mode):
-    global _screen, _ITEMS, _NAMES, _current, _browse_cursor
+    global _screen, _ITEMS, _NAMES, _current, _browse_cursor, _selector_open
     _screen = mode
     if mode == "scenes":
         _ITEMS = _SCENES
@@ -273,6 +271,7 @@ def _enter_mode(mode):
         _NAMES = [_module_name(m) for m in _GAMES]
     _current = 0
     _browse_cursor = _current
+    _selector_open = False
     _ITEMS[_current].init()
     glutSetWindowTitle(
         f"Primitives Engine  |  {_NAMES[_current]}".encode()
@@ -281,8 +280,9 @@ def _enter_mode(mode):
 
 
 def _go_back():
-    global _screen
+    global _screen, _selector_open
     _screen = "menu"
+    _selector_open = False
     glutSetWindowTitle(b"Primitives Engine  |  Select Mode")
 
 
@@ -295,8 +295,7 @@ def _display():
         _draw_menu()
     elif _screen in ("scenes", "games"):
         _ITEMS[_current].draw()
-        # Only show switcher overlay while Tab is held
-        if is_key(b"\t"):
+        if _selector_open:
             _draw_switcher()
 
 
@@ -304,7 +303,7 @@ def _update():
     global _menu_cursor, _screen
     global _last_keys, _last_up, _last_down
     global _last_enter, _last_back, _last_next, _last_prev
-    global _browse_cursor, _last_tab
+    global _browse_cursor, _selector_open, _last_tab
 
     up_now    = is_special(GLUT_KEY_UP)
     down_now  = is_special(GLUT_KEY_DOWN)
@@ -321,49 +320,55 @@ def _update():
             _enter_mode("scenes" if _menu_cursor == 0 else "games")
 
     elif _screen in ("scenes", "games"):
+        pressed = set()
+
         if tab_now and not _last_tab:
-            _browse_cursor = _current
+            _selector_open = not _selector_open
+            if _selector_open:
+                _browse_cursor = _current
 
-        # Freeze current scene/game updates while selector is open so arrow
-        # keys are reserved for list navigation.
-        if not tab_now:
-            _ITEMS[_current].update()
-
-        if back_now and not _last_back:
-            _go_back()
-
-        # Tab selector: browse with arrows, confirm with Enter.
-        if tab_now:
+        if _selector_open:
+            if back_now and not _last_back:
+                _selector_open = False
             if up_now and not _last_up:
                 _browse_cursor = (_browse_cursor - 1) % len(_ITEMS)
             if down_now and not _last_down:
                 _browse_cursor = (_browse_cursor + 1) % len(_ITEMS)
             if enter_now and not _last_enter:
                 _switch_to(_browse_cursor)
+                _selector_open = False
+        else:
+            _ITEMS[_current].update()
 
-        # Number key switching
-        pressed = set()
-        key_count = min(len(_ITEMS), len(_DIGIT_KEYS))
-        for i, key in enumerate(_DIGIT_KEYS[:key_count]):
-            if is_key(key):
-                pressed.add(i)
-        for i in pressed - _last_keys:
-            _switch_to(i)
-            _browse_cursor = _current
+            if back_now and not _last_back:
+                _go_back()
 
-        # N / P cycle if more than 10
-        next_now = is_key(b"n") or is_key(b"N")
-        prev_now = is_key(b"p") or is_key(b"P")
-        if len(_ITEMS) > len(_DIGIT_KEYS):
-            if next_now and not _last_next:
-                _switch_to((_current + 1) % len(_ITEMS))
-            if prev_now and not _last_prev:
-                _switch_to((_current - 1) % len(_ITEMS))
-        _last_next = next_now
-        _last_prev = prev_now
+            # Number key switching
+            key_count = min(len(_ITEMS), len(_DIGIT_KEYS))
+            for i, key in enumerate(_DIGIT_KEYS[:key_count]):
+                if is_key(key):
+                    pressed.add(i)
+            for i in pressed - _last_keys:
+                _switch_to(i)
+                _browse_cursor = _current
+
+            # N / P cycle if more than 10
+            next_now = is_key(b"n") or is_key(b"N")
+            prev_now = is_key(b"p") or is_key(b"P")
+            if len(_ITEMS) > len(_DIGIT_KEYS):
+                if next_now and not _last_next:
+                    _switch_to((_current + 1) % len(_ITEMS))
+                if prev_now and not _last_prev:
+                    _switch_to((_current - 1) % len(_ITEMS))
+            _last_next = next_now
+            _last_prev = prev_now
+        if _selector_open:
+            _last_next = False
+            _last_prev = False
+            pressed = set()
 
         _last_keys = pressed
-        _last_tab = tab_now
+    _last_tab = tab_now
 
     _last_up    = up_now
     _last_down  = down_now
