@@ -3,15 +3,31 @@ DISPLAY_NAME = "Flappy Bird"
 
 import os
 import random
+import tempfile
+import wave
 from math import pi, cos, sin
 from OpenGL.GL import *
 from engine.input import is_key
 from engine.renderer import draw_rect, draw_filled_polygon, draw_text
 from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
 
+try:
+    import numpy as np
+except Exception:
+    np = None
+
+try:
+    import winsound
+except Exception:
+    winsound = None
+
 _state = {}
 _texture_id = None
 _texture_loaded = False
+_audio_init_attempted = False
+_audio_ready = False
+_audio_cache = {}
+_audio_dir = None
 
 # ─────────────────────────────────────────────
 #  TEXTURE LOADING & HELPERS
@@ -55,12 +71,97 @@ def _draw_filled_circle(cx, cy, r, color=(1.0, 1.0, 1.0), segments=30):
         glVertex2f(cx + r * cos(angle), cy + r * sin(angle))
     glEnd()
 
+
+def _wav_bytes_from_samples(samples, sample_rate=22050):
+    global _audio_dir
+
+    if _audio_dir is None:
+        _audio_dir = os.path.join(tempfile.gettempdir(), "primitives_engine_audio")
+        os.makedirs(_audio_dir, exist_ok=True)
+
+    path = os.path.join(_audio_dir, f"{sample_rate}_{len(samples)}_{random.randint(1000, 9999)}.wav")
+    with wave.open(path, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(samples.tobytes())
+    return path
+
+
+def _synth_tone(freq, duration, volume=0.3, sample_rate=22050):
+    if np is None:
+        return None
+
+    count = max(1, int(sample_rate * duration))
+    t = np.linspace(0.0, duration, count, endpoint=False, dtype=np.float32)
+
+    # A tiny layered synth voice for chiptune-like notes.
+    signal = (
+        np.sin(2 * pi * freq * t)
+        + 0.34 * np.sin(2 * pi * freq * 2.0 * t + 0.3)
+        + 0.12 * np.sin(2 * pi * freq * 3.0 * t)
+    )
+
+    attack = max(1, int(count * 0.05))
+    release = max(1, int(count * 0.22))
+    env = np.ones(count, dtype=np.float32)
+    env[:attack] = np.linspace(0.0, 1.0, attack, endpoint=False, dtype=np.float32)
+    env[-release:] = np.linspace(1.0, 0.0, release, endpoint=True, dtype=np.float32)
+    signal *= env
+
+    peak = float(np.max(np.abs(signal))) or 1.0
+    samples = (signal / peak * (32767 * volume)).astype(np.int16)
+    return _wav_bytes_from_samples(samples, sample_rate)
+
+
+def _play_sound(name):
+    if not _audio_ready or winsound is None:
+        return
+
+    sound_path = _audio_cache.get(name)
+    if not sound_path:
+        return
+
+    try:
+        winsound.PlaySound(
+            sound_path,
+            winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
+        )
+    except Exception as exc:
+        print(f"[Flappy Bird] Sound play failed for {name}: {exc}")
+
+
+def _init_audio():
+    global _audio_init_attempted, _audio_ready
+
+    if _audio_init_attempted:
+        return
+    _audio_init_attempted = True
+
+    if np is None:
+        print("[Flappy Bird] NumPy not available, audio disabled.")
+        return
+    if winsound is None:
+        print("[Flappy Bird] winsound not available, audio disabled.")
+        return
+
+    try:
+        _audio_cache["flap"] = _synth_tone(880.0, 0.08, volume=0.22)
+        _audio_cache["game_over"] = _synth_tone(164.81, 0.35, volume=0.35)
+        _audio_ready = all(_audio_cache.values())
+        if not _audio_ready:
+            print("[Flappy Bird] Audio synthesis produced empty sound paths.")
+    except Exception as exc:
+        print(f"[Flappy Bird] Audio init failed: {exc}")
+        _audio_ready = False
+
 # ─────────────────────────────────────────────
 #  ENGINE API
 # ─────────────────────────────────────────────
 
 def init():
     _load_bird_texture()
+    _init_audio()
         
     _state["bird_x"] = -200
     _state["bird_y"] = 0
@@ -73,6 +174,7 @@ def init():
     _state["score"] = 0
     _state["game_over"] = False
     _state["space_pressed"] = False
+    _state["death_sound_played"] = False
     
     _spawn_pillar(WORLD_RIGHT)
 
@@ -96,6 +198,9 @@ def update():
     _state["space_pressed"] = space_down
 
     if _state["game_over"]:
+        if not _state["death_sound_played"]:
+            _play_sound("game_over")
+            _state["death_sound_played"] = True
         # Restart on space
         if space_just_pressed:
             init()
@@ -104,6 +209,7 @@ def update():
     # 1. Update Bird
     if space_just_pressed:
         _state["bird_vy"] = _state["flap_strength"]
+        _play_sound("flap")
         
     _state["bird_vy"] += _state["gravity"]
     _state["bird_y"] += _state["bird_vy"]
