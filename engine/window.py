@@ -1,4 +1,8 @@
 # engine\window.py
+import os
+import platform as py_platform
+
+from OpenGL import platform as ogl_platform
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
@@ -53,7 +57,25 @@ def init_window(title, display_fn, update_fn=None):
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutInitWindowSize(WIN_W, WIN_H)
     glutInitWindowPosition(100, 100)
-    glutCreateWindow(title.encode())
+    window_id = glutCreateWindow(title.encode())
+    if window_id <= 0:
+        raise RuntimeError(
+            "Failed to create GLUT window. "
+            f"DISPLAY={os.environ.get('DISPLAY')!r}, "
+            f"XDG_SESSION_TYPE={os.environ.get('XDG_SESSION_TYPE')!r}."
+        )
+
+    # Linux Wayland+EGL mismatch can create a window without a usable GL context.
+    if py_platform.system() == "Linux" and ogl_platform.GetCurrentContext() is None:
+        backend = os.environ.get("PYOPENGL_PLATFORM", "<auto>")
+        raise RuntimeError(
+            "OpenGL context is not current after window creation. "
+            f"PYOPENGL_PLATFORM={backend!r}, "
+            f"DISPLAY={os.environ.get('DISPLAY')!r}, "
+            f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY')!r}. "
+            "On Linux, run with a GLX backend (for example: "
+            "PYOPENGL_PLATFORM=glx /usr/bin/python3.10 main.py)."
+        )
 
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glEnable(GL_BLEND)

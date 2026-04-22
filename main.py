@@ -7,9 +7,16 @@ Number keys to switch scenes/games after selecting a mode.
 Tab toggles a full selector list; use Up/Down + Enter to choose.
 ESC to quit.
 """
+import os
+import platform
 import importlib
 import pkgutil
 from math import cos, pi, sin
+
+# On Linux (especially Wayland sessions), force the GLX backend for GLUT.
+# Keep native defaults untouched on Windows/macOS unless the user overrides.
+if platform.system() == "Linux":
+    os.environ.setdefault("PYOPENGL_PLATFORM", "glx")
 
 from OpenGL.GL import (
     GL_TRIANGLE_FAN, glBegin, glColor3f, glColor4f,
