@@ -15,6 +15,16 @@ from engine.renderer import draw_point, draw_line_dda, draw_line_bresenham, draw
 from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
 from algorithms import ...
 
+## Importing scenes inside a game module
+
+Use a normal absolute import in your game module:
+
+```python
+from scenes.KnowlegeTower import draw as draw_scene
+```
+
+Note: launcher mode (main.py) is the supported workflow for games in this engine.
+
 ## Algorithms
 
 - run_dda(x1, y1, x2, y2): DDA line rasterization; returns slope info and rounded pixel rows.
