@@ -2,7 +2,7 @@
 """
 Primitives Engine — main entry point
 Mode selection screen drawn with OpenGL primitives.
-Arrow keys to highlight, Enter to confirm, Backspace to go back.
+Arrow keys to highlight, Enter to confirm, Backspace/Delete to go back.
 Number keys to switch scenes/games after selecting a mode.
 Tab toggles a full selector list; use Up/Down + Enter to choose.
 ESC to quit.
@@ -23,12 +23,11 @@ from OpenGL.GL import (
     glEnd, glVertex2f,
 )
 from OpenGL.GLUT import (
-    GLUT_KEY_DOWN, GLUT_KEY_UP,
     glutSetWindowTitle,
 )
 
 from engine.window   import init_window, start_loop, WORLD_LEFT, WORLD_RIGHT, WORLD_TOP, WORLD_BOTTOM
-from engine.input    import is_key, is_special
+from engine.input    import is_key, is_action
 from engine.renderer import draw_text, draw_rect, draw_circle, draw_line_bresenham
 
 import scenes.village_scenery       as s1
@@ -197,7 +196,7 @@ def _draw_switcher():
                         WORLD_RIGHT - 20, WORLD_TOP - 35,
                         color=(0.2, 0.5, 1.0), size=1)
     draw_text(WORLD_LEFT + 30, WORLD_TOP - 28,
-              f"{mode_name} Mode  |  TAB toggle  |  UP/DOWN + ENTER select  |  Backspace = back",
+              f"{mode_name} Mode  |  TAB toggle  |  UP/DOWN + ENTER select  |  Backspace/Delete = back",
               color=(0.5, 0.6, 0.8))
     draw_text(WORLD_LEFT + 30, WORLD_BOTTOM + 20,
               f"Selected:  {_NAMES[_browse_cursor]}  |  Running: {_NAMES[_current]}",
@@ -312,11 +311,11 @@ def _update():
     global _last_enter, _last_back, _last_next, _last_prev
     global _browse_cursor, _selector_open, _last_tab
 
-    up_now    = is_special(GLUT_KEY_UP)
-    down_now  = is_special(GLUT_KEY_DOWN)
-    enter_now = is_key(b"\r") or is_key(b"\n")
-    back_now  = is_key(b"\x08")   # Backspace
-    tab_now   = is_key(b"\t")
+    up_now    = is_action("ui_up")
+    down_now  = is_action("ui_down")
+    enter_now = is_action("ui_confirm")
+    back_now  = is_action("ui_back")
+    tab_now   = is_action("ui_toggle_selector")
 
     if _screen == "menu":
         if up_now and not _last_up:
@@ -360,8 +359,8 @@ def _update():
                 _browse_cursor = _current
 
             # N / P cycle if more than 10
-            next_now = is_key(b"n") or is_key(b"N")
-            prev_now = is_key(b"p") or is_key(b"P")
+            next_now = is_action("ui_next")
+            prev_now = is_action("ui_prev")
             if len(_ITEMS) > len(_DIGIT_KEYS):
                 if next_now and not _last_next:
                     _switch_to((_current + 1) % len(_ITEMS))

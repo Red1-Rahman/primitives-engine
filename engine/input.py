@@ -9,6 +9,39 @@ from OpenGL.GLUT import *
 keys         = {}   # regular keys  e.g. b'a', b' '
 special_keys = {}   # arrow keys    e.g. GLUT_KEY_LEFT
 
+# Action bindings let apps query semantic actions instead of raw key bytes.
+# This keeps controls portable across platforms (e.g., macOS Delete vs Backspace).
+_action_bindings = {
+    "ui_up": {
+        "keys": set(),
+        "special": {GLUT_KEY_UP},
+    },
+    "ui_down": {
+        "keys": set(),
+        "special": {GLUT_KEY_DOWN},
+    },
+    "ui_confirm": {
+        "keys": {b"\r", b"\n"},
+        "special": set(),
+    },
+    "ui_back": {
+        "keys": {b"\x08", b"\x7f"},
+        "special": set(),
+    },
+    "ui_toggle_selector": {
+        "keys": {b"\t"},
+        "special": set(),
+    },
+    "ui_next": {
+        "keys": {b"n", b"N"},
+        "special": set(),
+    },
+    "ui_prev": {
+        "keys": {b"p", b"P"},
+        "special": set(),
+    },
+}
+
 mouse = {
     "x":       0,
     "y":       0,
@@ -72,6 +105,62 @@ def is_key(key) -> bool:
 def is_special(key) -> bool:
     """Check if a special key is held. e.g. is_special(GLUT_KEY_LEFT)"""
     return special_keys.get(key, False)
+
+
+def _normalize_regular_key(key):
+    if isinstance(key, bytes):
+        return key
+    if isinstance(key, str):
+        return key.encode()
+    raise TypeError("Regular key bindings must be bytes or str.")
+
+
+def bind_action(action, keys=None, special=None, append=False):
+    """
+    Bind a semantic action to one or more regular/special keys.
+
+    Examples:
+        bind_action("ui_back", keys=[b"\x08", b"\x7f"])
+        bind_action("ui_confirm", keys=["e"], append=True)
+    """
+    if action not in _action_bindings:
+        _action_bindings[action] = {"keys": set(), "special": set()}
+
+    binding = _action_bindings[action]
+    if not append:
+        binding["keys"].clear()
+        binding["special"].clear()
+
+    if keys:
+        for key in keys:
+            binding["keys"].add(_normalize_regular_key(key))
+
+    if special:
+        for key in special:
+            binding["special"].add(key)
+
+
+def get_action_bindings(action):
+    """Return a copy of the current binding for an action."""
+    if action not in _action_bindings:
+        return {"keys": set(), "special": set()}
+    binding = _action_bindings[action]
+    return {
+        "keys": set(binding["keys"]),
+        "special": set(binding["special"]),
+    }
+
+
+def is_action(action) -> bool:
+    """Check whether any key bound to an action is currently held."""
+    binding = _action_bindings.get(action)
+    if not binding:
+        return False
+    if any(is_key(key) for key in binding["keys"]):
+        return True
+    if any(is_special(key) for key in binding["special"]):
+        return True
+    return False
 
 
 def is_mouse(button="left") -> bool:
