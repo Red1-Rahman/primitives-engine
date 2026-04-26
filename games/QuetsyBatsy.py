@@ -159,6 +159,12 @@ class Maze:
 
 _state = {}
 
+BAT_COLORS = {
+    1: {"body": (0.0, 1.0, 1.0), "wing": (0.0, 0.7, 0.9)},      # Cyan
+    2: {"body": (0.9, 0.3, 1.0), "wing": (0.7, 0.1, 0.9)},      # Magenta
+    3: {"body": (1.0, 1.0, 0.0), "wing": (0.9, 0.85, 0.0)},     # Yellow
+}
+
 
 def _key_just_pressed(key):
     current = is_key(key)
@@ -210,6 +216,8 @@ def init():
 
     _state["prev_keys"] = {}
     _state["prev_special"] = {}
+
+    _state["bat_color_index"] = 2  # Default to Magenta
 
     _state["hud_h"] = 70
     _state["cell_size"] = _calc_cell_size(maze_w, maze_h, _state["hud_h"])
@@ -375,6 +383,13 @@ def update():
     if _key_just_pressed(b"e") or _key_just_pressed(b"E"):
         _activate_tunnel()
 
+    if _key_just_pressed(b"c") or _key_just_pressed(b"C"):
+        _state["bat_color_index"] = 1
+    elif _key_just_pressed(b"m") or _key_just_pressed(b"M"):
+        _state["bat_color_index"] = 2
+    elif _key_just_pressed(b"y") or _key_just_pressed(b"Y"):
+        _state["bat_color_index"] = 3
+
     if _key_just_pressed(b"w") or _special_just_pressed(GLUT_KEY_UP):
         _move_player(0, -1)
     elif _key_just_pressed(b"s") or _special_just_pressed(GLUT_KEY_DOWN):
@@ -400,8 +415,9 @@ def _draw_bat(px, py):
     cy = py + cell * 0.5
     wing_offset = 2.0 * (1 + ((-1) ** (_state["time"] // 8)))
 
-    body_color = (0.75, 0.25, 0.9)
-    wing_color = (0.5, 0.15, 0.7)
+    colors = BAT_COLORS.get(_state["bat_color_index"], BAT_COLORS[2])
+    body_color = colors["body"]
+    wing_color = colors["wing"]
 
     draw_filled_circle(cx, cy, cell * 0.28, color=body_color)
 
@@ -510,6 +526,12 @@ def draw():
 
     draw_text(WORLD_RIGHT - 320, hud_y + 40, "WASD / Arrows to move", color=(0.7, 0.7, 0.7))
     draw_text(WORLD_RIGHT - 320, hud_y + 18, "Space: Sonar  Q: Echo  E: Tunnel  R: Restart", color=(0.7, 0.7, 0.7))
+
+    color_names = {1: "Cyan", 2: "Magenta", 3: "Yellow"}
+    current_color = color_names.get(_state["bat_color_index"], "Unknown")
+    bat_color_display = BAT_COLORS.get(_state["bat_color_index"], BAT_COLORS[2])["body"]
+    bat_text = f"Bat: {current_color}  (C/M/Y to change)"
+    draw_text(WORLD_LEFT + 20, hud_y - 5, bat_text, color=bat_color_display)
 
     if _state["won"]:
         draw_rect(-180, -20, 360, 60, color=(0.1, 0.3, 0.1, 0.8), filled=True)
