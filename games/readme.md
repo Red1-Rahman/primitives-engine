@@ -62,6 +62,11 @@ draw_rect(WORLD_LEFT, WORLD_BOTTOM, WORLD_RIGHT - WORLD_LEFT, WORLD_TOP - WORLD_
 color=(0.06, 0.06, 0.09), filled=True)
 draw_text(WORLD_LEFT + 16, WORLD_TOP - 28, f"Score: {\_state['score']}")
 
+## Viewport is defined
+
+- Horizontal: $WORLD\_LEFT = -400$ to $WORLD\_RIGHT = 400$ (Width: 800)
+- Vertical: $WORLD\_BOTTOM = -300$ to $WORLD\_TOP = 300$ (Height: 600)
+
 ## Avoid
 
 - Do not create while loops or call glutMainLoop() in a game module.

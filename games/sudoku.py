@@ -1,101 +1,169 @@
-from engine.input import is_key, is_special, is_mouse, mouse_pos
+import random
+from engine.input import is_key, is_special
 from engine.renderer import draw_line_dda, draw_rect, draw_text
 from engine.window import WORLD_LEFT, WORLD_RIGHT, WORLD_BOTTOM, WORLD_TOP
+from OpenGL.GLUT import GLUT_KEY_UP, GLUT_KEY_DOWN, GLUT_KEY_LEFT, GLUT_KEY_RIGHT
 
-DISPLAY_NAME = "Sudoku"
+DISPLAY_NAME = "Sudoku Pro"
 
-# Game State
 _state = {
     "grid": [],
-    "original": [],  # To keep track of fixed numbers
-    "cursor": [0, 0], # [row, col]
-    "solved": False
+    "solution": [],
+    "original": [],
+    "cursor": [4, 4],
+    "lives": 3,
+    "hints": 1,
+    "error_cell": None,
+    "error_timer": 0,
+    "last_special": {},
+    "last_keys": set() # Added to track normal alphanumeric keys
 }
 
+def is_safe(grid, r, c, num):
+    for x in range(9):
+        if grid[r][x] == num or grid[x][c] == num:
+            return False
+    sr, sc = r - r % 3, c - c % 3
+    for i in range(3):
+        for j in range(3):
+            if grid[i + sr][j + sc] == num:
+                return False
+    return True
+
+def solve_grid(grid):
+    for r in range(9):
+        for c in range(9):
+            if grid[r][c] == 0:
+                nums = list(range(1, 10))
+                random.shuffle(nums)
+                for n in nums:
+                    if is_safe(grid, r, c, n):
+                        grid[r][c] = n
+                        if solve_grid(grid): return True
+                        grid[r][c] = 0
+                return False
+    return True
+
 def init():
-    # Example starting puzzle (0 = empty)
-    # In a full version, you could use a generator here
-    _state["grid"] = [
-        [5, 3, 0, 0, 7, 0, 0, 0, 0],
-        [6, 0, 0, 1, 9, 5, 0, 0, 0],
-        [0, 9, 8, 0, 0, 0, 0, 6, 0],
-        [8, 0, 0, 0, 6, 0, 0, 0, 3],
-        [4, 0, 0, 8, 0, 3, 0, 0, 1],
-        [7, 0, 0, 0, 2, 0, 0, 0, 6],
-        [0, 6, 0, 0, 0, 0, 2, 8, 0],
-        [0, 0, 0, 4, 1, 9, 0, 0, 5],
-        [0, 0, 0, 0, 8, 0, 0, 7, 9]
-    ]
-    # Deep copy to identify fixed cells
-    _state["original"] = [row[:] for row in _state["grid"]]
-    _state["cursor"] = [0, 0]
-    _state["solved"] = False
+    _state["lives"] = 3
+    _state["hints"] = 1
+    _state["cursor"] = [4, 4]
+    _state["error_cell"] = None
+    _state["error_timer"] = 0
+    _state["last_special"] = {}
+    _state["last_keys"] = set()
+    
+    base = [[0 for _ in range(9)] for _ in range(9)]
+    solve_grid(base)
+    _state["solution"] = [row[:] for row in base]
+    
+    puzzle = [row[:] for row in base]
+    removed = 0
+    while removed < 45:
+        r, c = random.randint(0, 8), random.randint(0, 8)
+        if puzzle[r][c] != 0:
+            puzzle[r][c] = 0
+            removed += 1
+            
+    _state["grid"] = puzzle
+    _state["original"] = [row[:] for row in puzzle]
 
 def update():
-    row, col = _state["cursor"]
-
-    # Navigation (Using arrow keys or WASD via is_key)
-    if is_key(b"w") or is_key(b"W"): _state["cursor"][0] = max(0, row - 1)
-    if is_key(b"s") or is_key(b"S"): _state["cursor"][0] = min(8, row + 1)
-    if is_key(b"a") or is_key(b"A"): _state["cursor"][1] = max(0, col - 1)
-    if is_key(b"d") or is_key(b"D"): _state["cursor"][1] = min(8, col + 1)
-
-    # Number Input (1-9)
-    for i in range(1, 10):
-        if is_key(str(i).encode()):
-            # Only allow editing if the cell wasn't part of the starting puzzle
-            if _state["original"][row][col] == 0:
-                _state["grid"][row][col] = i
-
-    # Clear cell
-    if is_key(b"0") or is_key(b" "):
-        if _state["original"][row][col] == 0:
-            _state["grid"][row][col] = 0
-
-    # Reset
+    # Always allow Reset
     if is_key(b"r") or is_key(b"R"):
         init()
+        return
+
+    if _state["lives"] <= 0:
+        return
+
+    r, c = _state["cursor"]
+    
+    # --- Input Debouncing Logic ---
+    def just_pressed_special(key):
+        is_down = is_special(key)
+        was_down = _state["last_special"].get(key, False)
+        _state["last_special"][key] = is_down
+        return is_down and not was_down
+
+    def just_pressed_key(k_byte):
+        is_down = is_key(k_byte)
+        was_down = k_byte in _state["last_keys"]
+        if is_down: _state["last_keys"].add(k_byte)
+        else: _state["last_keys"].discard(k_byte)
+        return is_down and not was_down
+
+    # Navigation
+    if just_pressed_special(GLUT_KEY_UP):    _state["cursor"][0] = max(0, r - 1)
+    if just_pressed_special(GLUT_KEY_DOWN):  _state["cursor"][0] = min(8, r + 1)
+    if just_pressed_special(GLUT_KEY_LEFT):  _state["cursor"][1] = max(0, c - 1)
+    if just_pressed_special(GLUT_KEY_RIGHT): _state["cursor"][1] = min(8, c + 1)
+
+    # Number Input (Debounced)
+    for i in range(1, 10):
+        kb = str(i).encode()
+        if just_pressed_key(kb):
+            if _state["original"][r][c] == 0 and _state["grid"][r][c] == 0:
+                if not is_safe(_state["grid"], r, c, i):
+                    _state["lives"] -= 1  # This will now only happen ONCE per tap
+                    _state["error_cell"] = [r, c]
+                    _state["error_timer"] = 40
+                else:
+                    _state["grid"][r][c] = i
+
+    # Hint System (Debounced)
+    if just_pressed_key(b"h") or just_pressed_key(b"H"):
+        if _state["hints"] > 0 and _state["grid"][r][c] == 0:
+            val = _state["solution"][r][c]
+            _state["grid"][r][c] = val
+            _state["original"][r][c] = val
+            _state["hints"] -= 1
+
+    if _state["error_timer"] > 0:
+        _state["error_timer"] -= 1
+    else:
+        _state["error_cell"] = None
 
 def draw():
-    # Background
-    draw_rect(WORLD_LEFT, WORLD_BOTTOM, WORLD_RIGHT - WORLD_LEFT, WORLD_TOP - WORLD_BOTTOM,
-              color=(0.1, 0.1, 0.12), filled=True)
+    draw_rect(WORLD_LEFT, WORLD_BOTTOM, WORLD_RIGHT-WORLD_LEFT, WORLD_TOP-WORLD_BOTTOM, (0.05, 0.05, 0.08), True)
+    
+    cell_size = 50
+    grid_size = cell_size * 9
+    start_x, start_y = -grid_size // 2, grid_size // 2
 
-    cell_size = 40
-    start_x = (WORLD_RIGHT // 2) - (cell_size * 4.5)
-    start_y = (WORLD_TOP // 2) + (cell_size * 4.5)
+    # Draw Selection
+    cr, cc = _state["cursor"]
+    cx, cy = start_x + (cc * cell_size), start_y - (cr * cell_size) - cell_size
+    
+    if _state["error_cell"] == [cr, cc]:
+        draw_rect(cx, cy, cell_size, cell_size, (0.9, 0.1, 0.1), True)
+    else:
+        draw_rect(cx, cy, cell_size, cell_size, (0.15, 0.3, 0.6), True)
+        draw_rect(cx + 3, cy + 3, cell_size - 6, cell_size - 6, (0.4, 0.8, 1.0), 1)
+
+    # Draw Numbers
+    for r in range(9):
+        for c in range(9):
+            val = _state["grid"][r][c]
+            if val != 0:
+                col = (1, 1, 1) if _state["original"][r][c] != 0 else (0, 0.9, 0.9)
+                draw_text(start_x + c*cell_size + 18, start_y - r*cell_size - 35, str(val), col)
 
     # Draw Grid
     for i in range(10):
-        # Thicker lines for 3x3 boundaries
-        thickness = 3 if i % 3 == 0 else 1
-        color = (0.8, 0.8, 0.8) if i % 3 == 0 else (0.4, 0.4, 0.4)
-        
-        # Horizontal lines
-        draw_line_dda(start_x, start_y - i * cell_size, 
-                      start_x + 9 * cell_size, start_y - i * cell_size)
-        # Vertical lines
-        draw_line_dda(start_x + i * cell_size, start_y, 
-                      start_x + i * cell_size, start_y - 9 * cell_size)
+        thick = (i % 3 == 0)
+        l_col = (1.0, 1.0, 1.0) if thick else (0.2, 0.25, 0.35)
+        pos = i * cell_size
+        draw_line_dda(start_x, start_y - pos, start_x + grid_size, start_y - pos, l_col)
+        draw_line_dda(start_x + pos, start_y, start_x + pos, start_y - grid_size, l_col)
+        if thick:
+            draw_line_dda(start_x, start_y - pos - 1, start_x + grid_size, start_y - pos - 1, l_col)
+            draw_line_dda(start_x + pos + 1, start_y, start_x + pos + 1, start_y - grid_size, l_col)
 
-    # Draw Numbers and Cursor
-    for r in range(9):
-        for c in range(9):
-            x = start_x + c * cell_size + 15
-            y = start_y - r * cell_size - 30
-            val = _state["grid"][r][c]
-
-            # Highlight Cursor
-            if _state["cursor"] == [r, c]:
-                draw_rect(start_x + c * cell_size, start_y - (r+1) * cell_size, 
-                          cell_size, cell_size, color=(0.2, 0.5, 0.8), filled=True)
-
-            # Draw Number
-            if val != 0:
-                # Fixed numbers are white, user numbers are light blue
-                text_color = (1, 1, 1) if _state["original"][r][c] != 0 else (0.4, 0.7, 1.0)
-                draw_text(x, y, str(val))
-
-    # Instructions
-    draw_text(WORLD_LEFT + 20, WORLD_BOTTOM + 40, "WASD: Move | 1-9: Place | 0/Space: Clear | R: Reset", (0.7, 0.7, 0.7))
-    draw_text(WORLD_LEFT + 20, WORLD_TOP - 30, "SUDOKU MODULE", (1, 0.8, 0))
+    # HUD
+    draw_text(WORLD_LEFT + 20, WORLD_TOP - 40, f"LIVES: {_state['lives']} | HINTS: {_state['hints']}", (1, 0.2, 0.2))
+    
+    if _state["lives"] <= 0:
+        draw_rect(-200, -50, 400, 100, (0, 0, 0), True)
+        draw_text(-140, 15, "GAME OVER!", (1, 0, 0))
+        draw_text(-180, -20, "OUT OF LIVES. PRESS R", (1, 1, 1))

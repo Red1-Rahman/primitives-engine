@@ -3,7 +3,6 @@
 Primitives Engine — main entry point
 Mode selection screen drawn with OpenGL primitives.
 Arrow keys to highlight, Enter to confirm, Backspace/Delete to go back.
-Number keys to switch scenes/games after selecting a mode.
 Tab toggles a full selector list; use Up/Down + Enter to choose.
 ESC to quit.
 """
@@ -14,7 +13,6 @@ import pkgutil
 from math import cos, pi, sin
 
 # On Linux (especially Wayland sessions), force the GLX backend for GLUT.
-# Keep native defaults untouched on Windows/macOS unless the user overrides.
 if platform.system() == "Linux":
     os.environ.setdefault("PYOPENGL_PLATFORM", "glx")
 
@@ -30,15 +28,14 @@ from engine.window   import init_window, start_loop, WORLD_LEFT, WORLD_RIGHT, WO
 from engine.input    import is_key, is_action
 from engine.renderer import draw_text, draw_rect, draw_circle, draw_line_bresenham
 
-import scenes.village_scenery       as s1
-import scenes.city_scenery          as s2
-import scenes.interior_design       as s3
-import scenes.village_hut_bazar     as s4
-import scenes.shadhinota            as s5
-import scenes.primary_school        as s6
-import scenes.jungle_cartoons       as s7
-#import scenes.wave_particle_collapse as s8
-import scenes.KnowlegeTower         as s8
+import scenes.village_scenery           as s1
+import scenes.city_scenery              as s2
+import scenes.interior_design           as s3
+import scenes.village_hut_bazar         as s4
+import scenes.shadhinota                as s5
+import scenes.primary_school            as s6
+import scenes.jungle_cartoons           as s7
+import scenes.KnowlegeTower             as s8
 
 import games as games_pkg
 
@@ -54,7 +51,6 @@ _SCENE_NAMES = [
     "Bangladesher Shadhinota",
     "Primary School",
     "Three Cartoons in Jungle",
-    #"Wave-Particle Collapse",
     "Knowledge Tower",
 ]
 
@@ -84,30 +80,28 @@ def _module_name(module):
 # ─────────────────────────────────────────────
 #  APP STATE
 # ─────────────────────────────────────────────
-# Screens: "menu" | "scenes" | "games"
-_screen        = "menu"
-_menu_cursor   = 0          # 0 = Scenes, 1 = Games
-_current       = 0          # active scene/game index
-_browse_cursor = 0          # selector cursor when Tab list is open
-_selector_open = False
+_screen         = "menu"
+_menu_cursor    = 0
+_current        = 0
+_browse_cursor  = 0
+_selector_open  = False
 
 _ITEMS  = []
 _NAMES  = []
 _GAMES  = []
 
-_DIGIT_KEYS   = [b"1", b"2", b"3", b"4", b"5", b"6", b"7", b"8", b"9", b"0"]
-_last_keys    = set()
-_last_up      = False
-_last_down    = False
-_last_enter   = False
-_last_back    = False
-_last_next    = False
-_last_prev    = False
-_last_tab     = False
+_last_keys     = set()
+_last_up       = False
+_last_down     = False
+_last_enter    = False
+_last_back     = False
+_last_next     = False
+_last_prev     = False
+_last_tab      = False
 
 
 # ─────────────────────────────────────────────
-#  MENU DRAWING  (all primitives)
+#  MENU DRAWING
 # ─────────────────────────────────────────────
 
 def _draw_filled_circle(cx, cy, r, sides=48):
@@ -120,12 +114,10 @@ def _draw_filled_circle(cx, cy, r, sides=48):
 
 
 def _draw_menu():
-    # Background
     draw_rect(WORLD_LEFT, WORLD_BOTTOM,
               WORLD_RIGHT - WORLD_LEFT, WORLD_TOP - WORLD_BOTTOM,
               color=(0.03, 0.03, 0.10), filled=True)
 
-    # Decorative top border — Bresenham line
     draw_line_bresenham(WORLD_LEFT + 20, WORLD_TOP - 20,
                         WORLD_RIGHT - 20, WORLD_TOP - 20,
                         color=(0.2, 0.5, 1.0), size=2)
@@ -133,7 +125,6 @@ def _draw_menu():
                         WORLD_RIGHT - 20, WORLD_BOTTOM + 20,
                         color=(0.2, 0.5, 1.0), size=2)
 
-    # Corner circles — midpoint circle algorithm
     for cx, cy in [
         (WORLD_LEFT  + 20, WORLD_TOP    - 20),
         (WORLD_RIGHT - 20, WORLD_TOP    - 20),
@@ -142,24 +133,20 @@ def _draw_menu():
     ]:
         draw_circle(cx, cy, 10, color=(0.2, 0.5, 1.0), size=2)
 
-    # Title
     draw_text(-145, 180, "PRIMITIVES  ENGINE",
               color=(0.9, 0.9, 1.0))
     draw_line_bresenham(-200, 160, 200, 160, color=(0.3, 0.3, 0.6), size=1)
 
-    # Menu options
     options     = ["  Scenes", "  Games"]
     option_y    = [60, -20]
     option_cols = [(0.6, 0.8, 1.0), (0.4, 0.9, 0.5)]
 
     for i, (label, oy, col) in enumerate(zip(options, option_y, option_cols)):
         if i == _menu_cursor:
-            # Highlight box
             draw_rect(-180, oy - 10, 360, 38,
                       color=(0.10, 0.18, 0.36), filled=True)
             draw_rect(-180, oy - 10, 360, 38,
                       color=(0.3, 0.6, 1.0), width=1.5)
-            # Arrow indicator
             glColor3f(1.0, 1.0, 0.2)
             glBegin(GL_TRIANGLE_FAN)
             glVertex2f(-155, oy + 9)
@@ -170,7 +157,6 @@ def _draw_menu():
         else:
             draw_text(-140, oy + 4, label, color=(0.5, 0.55, 0.65))
 
-    # Instructions
     draw_text(-165, -100, "UP / DOWN   arrow keys to move",
               color=(0.4, 0.4, 0.55))
     draw_text(-130, -128, "ENTER   to confirm",
@@ -186,12 +172,10 @@ def _draw_menu():
 def _draw_switcher():
     mode_name = "Scenes" if _screen == "scenes" else "Games"
 
-    # Background
     draw_rect(WORLD_LEFT, WORLD_BOTTOM,
               WORLD_RIGHT - WORLD_LEFT, WORLD_TOP - WORLD_BOTTOM,
               color=(0.03, 0.03, 0.10), filled=True)
 
-    # Header
     draw_line_bresenham(WORLD_LEFT + 20, WORLD_TOP - 35,
                         WORLD_RIGHT - 20, WORLD_TOP - 35,
                         color=(0.2, 0.5, 1.0), size=1)
@@ -202,7 +186,6 @@ def _draw_switcher():
               f"Selected:  {_NAMES[_browse_cursor]}  |  Running: {_NAMES[_current]}",
               color=(0.3, 0.8, 0.4))
 
-    # List (scrolls so unlimited items are accessible)
     start_y = 200
     step_y  = 36
     max_rows = max(1, int((start_y - (WORLD_BOTTOM + 65)) // step_y) + 1)
@@ -219,7 +202,6 @@ def _draw_switcher():
     for row, i in enumerate(range(first, last)):
         name = _NAMES[i]
         oy = start_y - row * step_y
-        key_label = "0" if i == 9 else str(i + 1) if i < 10 else "–"
 
         if i == _browse_cursor:
             draw_rect(-340, oy - 8, 680, 30,
@@ -232,19 +214,17 @@ def _draw_switcher():
             glVertex2f(-335, oy + 16)
             glVertex2f(-335, oy - 2)
             glEnd()
-            draw_text(-308, oy + 2, f"[{key_label}]  {name}",
+            draw_text(-308, oy + 2, f"{name}",
                       color=(1.0, 1.0, 1.0))
         else:
-            draw_text(-308, oy + 2, f"[{key_label}]  {name}",
+            draw_text(-308, oy + 2, f"{name}",
                       color=(0.5, 0.55, 0.65))
 
-    # Show list position hint when clipping is active.
     if total > max_rows:
         draw_text(WORLD_RIGHT - 200, WORLD_TOP - 28,
                   f"{_browse_cursor + 1}/{total}",
                   color=(0.7, 0.75, 0.85))
 
-    # Running scene/game label at bottom
     draw_line_bresenham(WORLD_LEFT + 20, WORLD_BOTTOM + 35,
                         WORLD_RIGHT - 20, WORLD_BOTTOM + 35,
                         color=(0.2, 0.5, 1.0), size=1)
@@ -326,8 +306,6 @@ def _update():
             _enter_mode("scenes" if _menu_cursor == 0 else "games")
 
     elif _screen in ("scenes", "games"):
-        pressed = set()
-
         if tab_now and not _last_tab:
             _selector_open = not _selector_open
             if _selector_open:
@@ -349,33 +327,21 @@ def _update():
             if back_now and not _last_back:
                 _go_back()
 
-            # Number key switching
-            key_count = min(len(_ITEMS), len(_DIGIT_KEYS))
-            for i, key in enumerate(_DIGIT_KEYS[:key_count]):
-                if is_key(key):
-                    pressed.add(i)
-            for i in pressed - _last_keys:
-                _switch_to(i)
-                _browse_cursor = _current
-
-            # N / P cycle if more than 10
+            # N / P cycle 
             next_now = is_action("ui_next")
             prev_now = is_action("ui_prev")
-            if len(_ITEMS) > len(_DIGIT_KEYS):
-                if next_now and not _last_next:
-                    _switch_to((_current + 1) % len(_ITEMS))
-                if prev_now and not _last_prev:
-                    _switch_to((_current - 1) % len(_ITEMS))
+            if next_now and not _last_next:
+                _switch_to((_current + 1) % len(_ITEMS))
+            if prev_now and not _last_prev:
+                _switch_to((_current - 1) % len(_ITEMS))
             _last_next = next_now
             _last_prev = prev_now
+
         if _selector_open:
             _last_next = False
             _last_prev = False
-            pressed = set()
 
-        _last_keys = pressed
     _last_tab = tab_now
-
     _last_up    = up_now
     _last_down  = down_now
     _last_enter = enter_now
